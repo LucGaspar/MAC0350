@@ -1,411 +1,359 @@
-﻿DROP DATABASE IF EXISTS "EPJEF";
-CREATE DATABASE "EPJEF";
-
--- NOTICE: At this place you need to connect to the new database and run the rest of the statements.
-
---
--- Table structure for table 'Administra'
---
-
-DROP TABLE IF EXISTS "Administra";
-
-CREATE TABLE "Administra" (
-  "ADM_NUSP" VARCHAR(255), 
-  "Curso" VARCHAR(255), 
-  "Periodo" VARCHAR(255)
+﻿create type endereco as
+(
+	cep varchar(8),
+	nomerua varchar(255),
+	numerorua integer,
+	comp varchar(100)
 );
 
---
--- Dumping data for table 'Administra'
---
+create function cpf_validar(par_cpf character varying) returns integer
+	language plpgsql
+    as $$
+    DECLARE
+        x real;
+        y real;
+        soma integer;
+        dig1 integer;
+        dig2 integer;
+        len integer;
+        contloop integer;
+        val_par_cpf varchar(11);
+    BEGIN
+        IF char_length(par_cpf) = 11 THEN
+        ELSE
+            RAISE NOTICE 'Formato inv�lido: %',$1;
+            RETURN 0;
+        END IF;
+        x := 0;
+        soma := 0;
+        dig1 := 0;
+        dig2 := 0;
+        contloop := 0;
+        val_par_cpf := $1;
+        len := char_length(val_par_cpf);
+        x := len -1;
 
-INSERT INTO "Administra" ("ADM_NUSP", "Curso", "Periodo") VALUES (E'1', E'1', E'1');
-INSERT INTO "Administra" ("ADM_NUSP", "Curso", "Periodo") VALUES (E'2', E'2', E'2');
--- 2 records
+        contloop :=1;
+        WHILE contloop <= (len -2) LOOP
+            y := CAST(substring(val_par_cpf from contloop for 1) AS NUMERIC);
+            soma := soma + ( y * x);
+            x := x - 1;
+            contloop := contloop +1;
+        END LOOP;
+        dig1 := 11 - CAST((soma % 11) AS INTEGER);
+        if (dig1 = 10) THEN dig1 :=0 ; END IF;
+        if (dig1 = 11) THEN dig1 :=0 ; END IF;
 
---
--- Table structure for table 'Administrador'
---
 
-DROP TABLE IF EXISTS "Administrador";
+        x := 11; soma :=0;
+        contloop :=1;
+        WHILE contloop <= (len -1) LOOP
+            soma := soma + CAST((substring(val_par_cpf FROM contloop FOR 1)) AS REAL) * x;
+            x := x - 1;
+            contloop := contloop +1;
+        END LOOP;
+        dig2 := 11 - CAST ((soma % 11) AS INTEGER);
+        IF (dig2 = 10) THEN dig2 := 0; END IF;
+        IF (dig2 = 11) THEN dig2 := 0; END IF;
+        --Teste do CPF
+        IF ((dig1 || '' || dig2) = substring(val_par_cpf FROM len-1 FOR 2)) THEN
+            RETURN 1;
+        ELSE
+            RAISE NOTICE 'DV do CPF Inv�lido: %',$1;
+            RETURN 0;
+        END IF;
+    END;
+    $$;
 
-CREATE TABLE "Administrador" (
-  "NUSP" SERIAL NOT NULL, 
-  "Status" VARCHAR(255), 
-  PRIMARY KEY ("NUSP")
+create table curriculo
+(
+	"ID_CURSO" integer not null
+		constraint "Currículo_pkey"
+			primary key,
+	"Periodo" daterange,
+	"Grade" varchar(20) [] not null
 );
 
---
--- Dumping data for table 'Administrador'
---
+create index "Currículo_ID_CURSO"
+	on curriculo ("ID_CURSO");
 
--- 0 records
-
-SELECT setval('"Administrador_NUSP_seq"', MAX("NUSP")) FROM "Administrador";
-
---
--- Table structure for table 'Aluno'
---
-
-DROP TABLE IF EXISTS "Aluno";
-
-CREATE TABLE "Aluno" (
-  "NUSP" INTEGER NOT NULL DEFAULT 0, 
-  "Curso" VARCHAR(255), 
-  PRIMARY KEY ("NUSP")
+create table "Perfil"
+(
+	"ID_PERFIL" integer not null
+		constraint "Perfil_pkey"
+			primary key,
+	"Permissoes" boolean[] not null
 );
 
---
--- Dumping data for table 'Aluno'
---
+create index "Perfil_ID_PERFIL"
+	on "Perfil" ("ID_PERFIL");
 
-INSERT INTO "Aluno" ("NUSP", "Curso") VALUES (2, E'2');
-INSERT INTO "Aluno" ("NUSP", "Curso") VALUES (3, E'333');
-INSERT INTO "Aluno" ("NUSP", "Curso") VALUES (4, E'5');
--- 3 records
-
---
--- Table structure for table 'Currículo'
---
-
-DROP TABLE IF EXISTS "Currículo";
-
-CREATE TABLE "Currículo" (
-  "ID_CURSO" VARCHAR(255) NOT NULL, 
-  "Periodo" VARCHAR(255), 
-  "Grade" VARCHAR(255), 
-  PRIMARY KEY ("ID_CURSO")
+create table "Trilha"
+(
+	"ID_TRILHA" varchar(2) not null
+		constraint "Trilha_pkey"
+			primary key,
+	"Nome" varchar(255) not null
 );
 
---
--- Dumping data for table 'Currículo'
---
-
--- 0 records
-
-CREATE INDEX "Currículo_ID_CURSO" ON "Currículo" ("ID_CURSO");
-
---
--- Table structure for table 'Cursa'
---
-
-DROP TABLE IF EXISTS "Cursa";
-
-CREATE TABLE "Cursa" (
-  "Status" VARCHAR(255), 
-  "Nota" VARCHAR(255), 
-  "Frequencia" VARCHAR(255), 
-  "Al_NUSP" VARCHAR(255), 
-  "ID_MINISTRA" VARCHAR(255)
+create table rel_cur_tri
+(
+	"Curso" integer not null
+		constraint "rel_cur_tri_currículo__fk"
+			references curriculo
+				on update cascade on delete cascade,
+	"ID_TRILHA" varchar(2) not null
+		constraint rel_cur_tri_trilha__fk
+			references "Trilha",
+	"Disciplinas" varchar(20) [] not null
 );
 
---
--- Dumping data for table 'Cursa'
---
+create index "rel_cur_tri_ID"
+	on rel_cur_tri ("Curso");
 
--- 0 records
+create index "rel_cur_tri_ID_TRILHA"
+	on rel_cur_tri ("ID_TRILHA");
 
-CREATE INDEX "Cursa_ID_MINISTRA" ON "Cursa" ("ID_MINISTRA");
+create index "Trilha_ID_TRILHA"
+	on "Trilha" ("ID_TRILHA");
 
---
--- Table structure for table 'Disciplina'
---
-
-DROP TABLE IF EXISTS "Disciplina";
-
-CREATE TABLE "Disciplina" (
-  "CODIGO_DISCIPLINA" VARCHAR(255) NOT NULL, 
-  "Descricao" VARCHAR(255), 
-  "Status" VARCHAR(255), 
-  "Instituto" VARCHAR(255), 
-  "CreditoTrabalho" VARCHAR(255), 
-  "CreditoAula" VARCHAR(255), 
-  PRIMARY KEY ("CODIGO_DISCIPLINA")
+create table "Disciplina"
+(
+	"ID_DISCIPLINA" varchar(20) not null
+		constraint "Disciplina_pkey"
+			primary key,
+	"PeriodoAtiva" daterange,
+	"Instituto" varchar(255) not null,
+	"CreditoTrabalho" varchar(2) not null,
+	"CreditoAula" varchar(2) not null,
+	nome varchar(255) not null
 );
 
---
--- Dumping data for table 'Disciplina'
---
-
--- 0 records
-
---
--- Table structure for table 'Ministra'
---
-
-DROP TABLE IF EXISTS "Ministra";
-
-CREATE TABLE "Ministra" (
-  "Periodo" VARCHAR(255), 
-  "ID_MINISTRA" VARCHAR(255) NOT NULL, 
-  "Horario" VARCHAR(255), 
-  "Monitor" VARCHAR(255), 
-  "Turma" VARCHAR(255), 
-  "Sala" VARCHAR(255), 
-  "Prof_NUSP" VARCHAR(255), 
-  "ID_DISCIPLINA" VARCHAR(255), 
-  PRIMARY KEY ("ID_MINISTRA")
+create table modulo
+(
+	"Nome" varchar(255) not null,
+	"ID_MODULO" varchar(2) not null
+		constraint "Módulo_pkey"
+			primary key,
+	"ID_TRILHA" varchar(255)
 );
 
---
--- Dumping data for table 'Ministra'
---
+create index "Módulo_ID_TRILHA"
+	on modulo ("ID_TRILHA");
 
--- 0 records
+create index "Módulo_ID_MÓDULO"
+	on modulo ("ID_MODULO");
 
-CREATE INDEX "Ministra_ID_" ON "Ministra" ("Prof_NUSP");
-
-CREATE INDEX "Ministra_ID_DISCIPLINA" ON "Ministra" ("ID_DISCIPLINA");
-
-CREATE INDEX "Ministra_ID_MINISTRA" ON "Ministra" ("ID_MINISTRA");
-
---
--- Table structure for table 'Módulo'
---
-
-DROP TABLE IF EXISTS "Módulo";
-
-CREATE TABLE "Módulo" (
-  "Nome" VARCHAR(255), 
-  "ID_MODULO" VARCHAR(255) NOT NULL, 
-  "ID_TRILHA" VARCHAR(255), 
-  PRIMARY KEY ("ID_MODULO")
+create table rel_dis_mod
+(
+	id_modulo varchar(2) not null
+		constraint rel_dis_mod_modulo__fk
+			references modulo
+				on update cascade on delete cascade,
+	id_discplina varchar(20) not null
+		constraint rel_dis_mod_disciplina__fk
+			references "Disciplina",
+	nat char not null
+		constraint rel_dis_mod_nat_check
+			check (nat = ANY (ARRAY['O'::bpchar, 'E'::bpchar, 'L'::bpchar, 'X'::bpchar])),
+	prereq varchar(255) [] not null
 );
 
---
--- Dumping data for table 'Módulo'
---
-
--- 0 records
-
-CREATE INDEX "Módulo_ID_MÓDULO" ON "Módulo" ("ID_MODULO");
-
-CREATE INDEX "Módulo_ID_TRILHA" ON "Módulo" ("ID_TRILHA");
-
---
--- Table structure for table 'Perfil'
---
-
-DROP TABLE IF EXISTS "Perfil";
-
-CREATE TABLE "Perfil" (
-  "ID_PERFIL" VARCHAR(255) NOT NULL, 
-  "Permissoes" VARCHAR(255), 
-  PRIMARY KEY ("ID_PERFIL")
+create table servico
+(
+	"ID_SERVICO" integer not null
+		constraint "Serviço_pkey"
+			primary key
+		constraint "servico_ID_SERVICO_check"
+			check (("ID_SERVICO" >= 0) AND ("ID_SERVICO" <= 99)),
+	"Descricao" varchar(255) not null
 );
 
---
--- Dumping data for table 'Perfil'
---
-
--- 0 records
-
-CREATE INDEX "Perfil_ID_PERFIL" ON "Perfil" ("ID_PERFIL");
-
---
--- Table structure for table 'Pessoa'
---
-
-DROP TABLE IF EXISTS "Pessoa";
-
-CREATE TABLE "Pessoa" (
-  "CPF" INTEGER NOT NULL DEFAULT 0, 
-  "Nome" VARCHAR(255), 
-  "DataNascimento" VARCHAR(255), 
-  "Email" VARCHAR(255), 
-  "Telefone" VARCHAR(255), 
-  "Sexo" VARCHAR(255), 
-  "Idade" VARCHAR(255), 
-  "Endereco" VARCHAR(255), 
-  PRIMARY KEY ("CPF")
+create table pf_se
+(
+	"PERFIL" integer not null
+		constraint pf_se_perfil__fk
+			references "Perfil"
+				on update cascade on delete cascade,
+	"SERVICO" integer not null
+		constraint pf_se_servico__fk
+			references servico,
+	"Descricao" varchar(255) not null
 );
 
---
--- Dumping data for table 'Pessoa'
---
+create index "Serviço_ID_"
+	on servico ("ID_SERVICO");
 
--- 0 records
-
-CREATE INDEX "Pessoa_Idade" ON "Pessoa" ("DataNascimento");
-
-CREATE INDEX "Pessoa_Idade1" ON "Pessoa" ("Idade");
-
---
--- Table structure for table 'pf_se'
---
-
-DROP TABLE IF EXISTS "pf_se";
-
-CREATE TABLE "pf_se" (
-  "PERFIL" VARCHAR(255), 
-  "SERVICOS" VARCHAR(255), 
-  "Descricao" VARCHAR(255)
+create table "Pessoa"
+(
+	"CPF" text not null
+		constraint "Pessoa_pkey"
+			primary key
+		constraint "Pessoa_CPF_check"
+			check (cpf_validar(("CPF")::character varying) = 1),
+	"Nome" varchar(255) not null,
+	"DataNascimento" date not null,
+	"Email" varchar(255),
+	"Sexo" char
+		constraint "Pessoa_Sexo_check"
+			check ("Sexo" = ANY (ARRAY['M'::bpchar, 'H'::bpchar, 'N'::bpchar])),
+	"Idade" integer,
+	"Endereco" endereco not null
 );
 
---
--- Dumping data for table 'pf_se'
---
-
--- 0 records
-
---
--- Table structure for table 'Planeja'
---
-
-DROP TABLE IF EXISTS "Planeja";
-
-CREATE TABLE "Planeja" (
-  "NUSP" VARCHAR(255), 
-  "ID_DISCIPLINA" VARCHAR(255), 
-  "Periodo" VARCHAR(255)
+create table "Administrador"
+(
+	"NUSP" integer not null
+		constraint "Administrador_pkey"
+			primary key
+		constraint check_nusp
+			check (("NUSP" > 0) AND ("NUSP" < 999999999)),
+	"Status" varchar(255),
+	cpf varchar(11) not null
+		constraint administrador_pessoa__fk
+			references "Pessoa"
+		constraint "Administrador_cpf_check"
+			check (cpf_validar(cpf) = 1)
 );
 
---
--- Dumping data for table 'Planeja'
---
+create unique index administrador_cpf_uindex
+	on "Administrador" (cpf);
 
--- 0 records
-
-CREATE INDEX "Planeja_ID_DISCIPLINA" ON "Planeja" ("ID_DISCIPLINA");
-
---
--- Table structure for table 'Professor'
---
-
-DROP TABLE IF EXISTS "Professor";
-
-CREATE TABLE "Professor" (
-  "NUSP" SERIAL NOT NULL, 
-  "CPF" VARCHAR(255), 
-  "Especializacao" VARCHAR(255), 
-  PRIMARY KEY ("NUSP")
+create table usuario
+(
+	"Login" varchar(255) not null
+		constraint "Usuário_pkey"
+			primary key,
+	"CPF" varchar(11) not null
+		constraint usuario_pessoa__fk
+			references "Pessoa",
+	"Senha" varchar(255) not null,
+	"Email" varchar(255) not null
 );
 
---
--- Dumping data for table 'Professor'
---
-
--- 0 records
-
-SELECT setval('"Professor_NUSP_seq"', MAX("NUSP")) FROM "Professor";
-
---
--- Table structure for table 'rel_cur_tri'
---
-
-DROP TABLE IF EXISTS "rel_cur_tri";
-
-CREATE TABLE "rel_cur_tri" (
-  "Curso" VARCHAR(255), 
-  "ID_TRILHA" VARCHAR(255), 
-  "Disciplinas" VARCHAR(255)
+create table us_pf
+(
+	"LOGIN" varchar(255) not null
+		constraint us_pf_usuario__fk
+			references usuario
+				on update cascade on delete cascade,
+	"PERFIL" integer not null
+		constraint us_pf_perfil__fk
+			references "Perfil"
 );
 
---
--- Dumping data for table 'rel_cur_tri'
---
-
--- 0 records
-
-CREATE INDEX "rel_cur_tri_ID" ON "rel_cur_tri" ("Curso");
-
-CREATE INDEX "rel_cur_tri_ID_TRILHA" ON "rel_cur_tri" ("ID_TRILHA");
-
---
--- Table structure for table 'rel_dis_mod'
---
-
-DROP TABLE IF EXISTS "rel_dis_mod";
-
-CREATE TABLE "rel_dis_mod" (
-  "ID_MODULO" VARCHAR(255), 
-  "ID_DISCIPLINA" VARCHAR(255), 
-  "Nat" VARCHAR(255), 
-  "PreReq" VARCHAR(255)
+create table "Aluno"
+(
+	"NUSP" integer not null
+		constraint "Aluno_pkey"
+			primary key
+		constraint "Aluno_NUSP_check"
+			check (("NUSP" > 0) AND ("NUSP" <= 999999999)),
+	"Curso" varchar(255),
+	cpf varchar(11) not null
+		constraint aluno_pessoa__fk
+			references "Pessoa"
+		constraint "Aluno_cpf_check"
+			check (cpf_validar(cpf) = 1)
 );
 
---
--- Dumping data for table 'rel_dis_mod'
---
-
--- 0 records
-
-CREATE INDEX "rel_dis_mod_ID_DISCIPLINA" ON "rel_dis_mod" ("ID_DISCIPLINA");
-
---
--- Table structure for table 'Serviço'
---
-
-DROP TABLE IF EXISTS "Serviço";
-
-CREATE TABLE "Serviço" (
-  "ID_SERVIÇO" VARCHAR(255) NOT NULL, 
-  "Descricao" VARCHAR(255), 
-  PRIMARY KEY ("ID_SERVIÇO")
+create table "Planeja"
+(
+	"NUSP" integer not null
+		constraint planeja_aluno__fk
+			references "Aluno",
+	"ID_DISCIPLINA" varchar(20) not null
+		constraint planeja_disciplina__fk
+			references "Disciplina"
+				on update cascade on delete cascade,
+	"Periodo" date
 );
 
---
--- Dumping data for table 'Serviço'
---
+create index "Planeja_ID_DISCIPLINA"
+	on "Planeja" ("ID_DISCIPLINA");
 
--- 0 records
+create unique index aluno_cpf_uindex
+	on "Aluno" (cpf);
 
-CREATE INDEX "Serviço_ID_" ON "Serviço" ("ID_SERVIÇO");
-
---
--- Table structure for table 'Trilha'
---
-
-DROP TABLE IF EXISTS "Trilha";
-
-CREATE TABLE "Trilha" (
-  "ID_TRILHA" VARCHAR(255) NOT NULL, 
-  "Nome" VARCHAR(255), 
-  PRIMARY KEY ("ID_TRILHA")
+create table "Professor"
+(
+	"NUSP" integer not null
+		constraint "Professor_pkey"
+			primary key
+		constraint "Professor_NUSP_check"
+			check (("NUSP" > 0) AND ("NUSP" <= 999999999)),
+	"CPF" varchar(11) not null
+		constraint professor_pessoa__fk
+			references "Pessoa"
+		constraint "Professor_CPF_check"
+			check (cpf_validar("CPF") = 1),
+	"Especializacao" varchar(255)
 );
 
---
--- Dumping data for table 'Trilha'
---
+create unique index professor_cpf_uindex
+	on "Professor" ("CPF");
 
--- 0 records
-
-CREATE INDEX "Trilha_ID_TRILHA" ON "Trilha" ("ID_TRILHA");
-
---
--- Table structure for table 'us_pf'
---
-
-DROP TABLE IF EXISTS "us_pf";
-
-CREATE TABLE "us_pf" (
-  "LOGIN" VARCHAR(255), 
-  "PERFIL" VARCHAR(255)
+create table "Administra"
+(
+	"ADM_NUSP" integer not null
+		constraint administra_administrador__fk
+			references "Administrador",
+	"Curso" integer not null
+		constraint administra_curriculo__fk
+			references curriculo,
+	"Periodo" daterange
 );
 
---
--- Dumping data for table 'us_pf'
---
+create unique index administra_adm_nusp_uindex
+	on "Administra" ("ADM_NUSP");
 
--- 0 records
-
---
--- Table structure for table 'Usuário'
---
-
-DROP TABLE IF EXISTS "Usuário";
-
-CREATE TABLE "Usuário" (
-  "Login" VARCHAR(255) NOT NULL, 
-  "CPF" VARCHAR(255), 
-  "Senha" VARCHAR(255), 
-  "Email" VARCHAR(255), 
-  PRIMARY KEY ("Login")
+create table "Ministra"
+(
+	"Periodo" daterange not null,
+	"ID_MINISTRA" varchar(30) not null
+		constraint "Ministra_pkey"
+			primary key,
+	"Horario" time without time zone[] not null,
+	"Monitor" integer,
+	"Turma" varchar(255) not null,
+	"Sala" varchar(255),
+	"NUSProf" integer not null
+		constraint ministra_professor__fk
+			references "Professor",
+	"ID_DISCIPLINA" varchar(255)
+		constraint ministra_disciplina__fk
+			references "Disciplina"
 );
 
---
--- Dumping data for table 'Usuário'
---
+create index "Ministra_ID_DISCIPLINA"
+	on "Ministra" ("ID_DISCIPLINA");
 
--- 0 records
+create index "Ministra_ID_MINISTRA"
+	on "Ministra" ("ID_MINISTRA");
+
+create table "Cursa"
+(
+	"Status" varchar(2),
+	"Nota" double precision
+		constraint "Cursa_Nota_check"
+			check (("Nota" >= (0)::double precision) AND ("Nota" <= (10)::double precision)),
+	"Frequencia" double precision
+		constraint "Cursa_Frequencia_check"
+			check (("Frequencia" <= (1)::double precision) AND ("Frequencia" >= (0)::double precision)),
+	"NUSP" integer not null
+		constraint cursa_aluno__fk
+			references "Aluno",
+	"ID_MINISTRA" varchar(30) not null
+		constraint cursa_ministra__fk
+			references "Ministra"
+);
+
+create index "Cursa_ID_MINISTRA"
+	on "Cursa" ("ID_MINISTRA");
+
+create index "Pessoa_Idade"
+	on "Pessoa" ("DataNascimento");
+
+create index "Pessoa_Idade1"
+	on "Pessoa" ("Idade");
 
