@@ -1,9 +1,16 @@
-﻿create type endereco as
+create type endereco as
 (
 	cep varchar(8),
 	nomerua varchar(255),
 	numerorua integer,
 	comp varchar(100)
+);
+
+create type id_ministra as
+    (
+        NUSProf integer,
+        ID_DISCIPLINA varchar(20),
+        Periodo daterange
 );
 
 create function cpf_validar(par_cpf character varying) returns integer
@@ -310,7 +317,7 @@ create unique index administra_adm_nusp_uindex
 create table "Ministra"
 (
 	"Periodo" daterange not null,
-	"ID_MINISTRA" varchar(30) not null
+	"ID_MINISTRA" id_ministra not null
 		constraint "Ministra_pkey"
 			primary key,
 	"Horario" time without time zone[] not null,
@@ -343,7 +350,7 @@ create table "Cursa"
 	"NUSP" integer not null
 		constraint cursa_aluno__fk
 			references "Aluno",
-	"ID_MINISTRA" varchar(30) not null
+	"ID_MINISTRA" id_ministra not null
 		constraint cursa_ministra__fk
 			references "Ministra"
 );
@@ -356,4 +363,3 @@ create index "Pessoa_Idade"
 
 create index "Pessoa_Idade1"
 	on "Pessoa" ("Idade");
-
