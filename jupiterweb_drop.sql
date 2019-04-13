@@ -39,3 +39,5 @@ drop table if exists "Pessoa" cascade;
 drop function if exists cpf_validar(varchar);
 
 drop type if exists endereco;
+
+drop type if exists id_ministra;
