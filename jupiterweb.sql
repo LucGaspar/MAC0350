@@ -74,26 +74,25 @@ create function cpf_validar(par_cpf character varying) returns integer
 
 create table curriculo
 (
-	"ID_CURSO" integer not null
+	"CURSO" integer not null
 		constraint "Currículo_pkey"
 			primary key,
 	"Periodo" daterange,
 	"Grade" varchar(20) [] not null
 );
 
-create index "Currículo_ID_CURSO"
-	on curriculo ("ID_CURSO");
+create index "Currículo_CURSO"
+	on curriculo ("CURSO");
 
 create table "Perfil"
 (
-	"ID_PERFIL" integer not null
+	"PERFIL" integer not null
 		constraint "Perfil_pkey"
-			primary key,
-	"Permissoes" boolean[] not null
+			primary key
 );
 
-create index "Perfil_ID_PERFIL"
-	on "Perfil" ("ID_PERFIL");
+create index "Perfil_PERFIL"
+	on "Perfil" ("PERFIL");
 
 create table "Trilha"
 (
@@ -131,8 +130,8 @@ create table "Disciplina"
 			primary key,
 	"PeriodoAtiva" daterange,
 	"Instituto" varchar(255) not null,
-	"CreditoTrabalho" varchar(2) not null,
-	"CreditoAula" varchar(2) not null,
+	"CredTrab" varchar(2) not null,
+	"CredAula" varchar(2) not null,
 	nome varchar(255) not null
 );
 
@@ -162,8 +161,7 @@ create table rel_dis_mod
 			references "Disciplina",
 	nat char not null
 		constraint rel_dis_mod_nat_check
-			check (nat = ANY (ARRAY['O'::bpchar, 'E'::bpchar, 'L'::bpchar, 'X'::bpchar])),
-	prereq varchar(255) [] not null
+			check (nat = ANY (ARRAY['O'::bpchar, 'E'::bpchar, 'L'::bpchar, 'X'::bpchar]))
 );
 
 create table servico
@@ -211,14 +209,14 @@ create table "Pessoa"
 create table "Administrador"
 (
 	"NUSP" integer not null
-		constraint "Administrador_pkey"
-			primary key
 		constraint check_nusp
 			check (("NUSP" > 0) AND ("NUSP" < 999999999)),
-	"Status" varchar(255),
+	"Perfil" varchar(255),
 	cpf varchar(11) not null
 		constraint administrador_pessoa__fk
 			references "Pessoa"
+	    constraint "Administrador_pkey"
+			primary key
 		constraint "Administrador_cpf_check"
 			check (cpf_validar(cpf) = 1)
 );
@@ -252,12 +250,12 @@ create table us_pf
 create table "Aluno"
 (
 	"NUSP" integer not null
-		constraint "Aluno_pkey"
-			primary key
 		constraint "Aluno_NUSP_check"
 			check (("NUSP" > 0) AND ("NUSP" <= 999999999)),
 	"Curso" varchar(255),
 	cpf varchar(11) not null
+	    constraint "Aluno_pkey"
+			primary key
 		constraint aluno_pessoa__fk
 			references "Pessoa"
 		constraint "Aluno_cpf_check"
@@ -266,7 +264,7 @@ create table "Aluno"
 
 create table "Planeja"
 (
-	"NUSP" integer not null
+	"cpf" varchar(11) not null
 		constraint planeja_aluno__fk
 			references "Aluno",
 	"ID_DISCIPLINA" varchar(20) not null
@@ -285,16 +283,16 @@ create unique index aluno_cpf_uindex
 create table "Professor"
 (
 	"NUSP" integer not null
-		constraint "Professor_pkey"
-			primary key
 		constraint "Professor_NUSP_check"
 			check (("NUSP" > 0) AND ("NUSP" <= 999999999)),
 	"CPF" varchar(11) not null
+	    constraint "Professor_pkey"
+			primary key
 		constraint professor_pessoa__fk
 			references "Pessoa"
 		constraint "Professor_CPF_check"
 			check (cpf_validar("CPF") = 1),
-	"Especializacao" varchar(255)
+	"Espec" varchar(255)
 );
 
 create unique index professor_cpf_uindex
@@ -302,7 +300,7 @@ create unique index professor_cpf_uindex
 
 create table "Administra"
 (
-	"ADM_NUSP" integer not null
+	"cpf" varchar(11) not null
 		constraint administra_administrador__fk
 			references "Administrador",
 	"Curso" integer not null
@@ -312,7 +310,7 @@ create table "Administra"
 );
 
 create unique index administra_adm_nusp_uindex
-	on "Administra" ("ADM_NUSP");
+	on "Administra" ("cpf");
 
 create table "Ministra"
 (
@@ -324,13 +322,72 @@ create table "Ministra"
 	"Monitor" integer,
 	"Turma" varchar(255) not null,
 	"Sala" varchar(255),
-	"NUSProf" integer not null
+	"CPF" varchar(11) not null
 		constraint ministra_professor__fk
 			references "Professor",
 	"ID_DISCIPLINA" varchar(255)
 		constraint ministra_disciplina__fk
 			references "Disciplina"
 );
+
+
+create table periodo_curriculo
+(
+	id_curso integer not null
+		constraint periodo_curriculo_curriculo__fk
+			references curriculo,
+	periodo date
+);
+
+create table DISCIPLINAS_REL_CUR_TRI
+(
+	id_curso integer not null
+		constraint DISCIPLINAS_REL_CUR_TRI_curriculo__fk
+			references curriculo,
+	id_trilha varchar(2) not null
+        constraint DISCIPLINAS_REL_CUR_TRI_trilha__fk
+            references "Trilha"
+);
+
+create table PERMISSOES_PERFIL
+(
+	id_perfil integer not null
+		constraint PERMISSOES_PERFIL_perfil__fk
+			references "Perfil",
+	id_servico integer not null
+        constraint PERMISSOES_PERFIL_servico__fk
+            references servico
+);
+
+create table GRADE_CURRICULO
+(
+	id_curso integer not null
+		constraint periodo_curriculo_curriculo__fk
+			references curriculo,
+	id_disciplina varchar(20) not null
+        constraint grade_curriculo_disciplina__fk
+            references "Disciplina"
+);
+
+create table PERIODO_DISCIPLINA
+(
+	id_disciplina varchar(20) not null
+        constraint grade_curriculo_disciplina__fk
+            references "Disciplina",
+    periodo date
+);
+
+create table PREREQ_REL_DIS_MOD
+(
+	id_modulo varchar not null
+		constraint PREREQ_REL_DIS_MOD_modulo__fk
+			references modulo,
+	id_disciplina varchar(20) not null
+        constraint grade_curriculo_disciplina__fk
+            references "Disciplina",
+    prereq varchar
+);
+
 
 create index "Ministra_ID_DISCIPLINA"
 	on "Ministra" ("ID_DISCIPLINA");
@@ -347,7 +404,7 @@ create table "Cursa"
 	"Frequencia" double precision
 		constraint "Cursa_Frequencia_check"
 			check (("Frequencia" <= (1)::double precision) AND ("Frequencia" >= (0)::double precision)),
-	"NUSP" integer not null
+	"cpf" varchar(11) not null
 		constraint cursa_aluno__fk
 			references "Aluno",
 	"ID_MINISTRA" id_ministra not null
