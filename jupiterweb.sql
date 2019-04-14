@@ -354,9 +354,7 @@ create table PERMISSOES_PERFIL
 	id_perfil integer not null
 		constraint PERMISSOES_PERFIL_perfil__fk
 			references "Perfil",
-	id_servico integer not null
-        constraint PERMISSOES_PERFIL_servico__fk
-            references servico
+    permissoes bool[]
 );
 
 create table GRADE_CURRICULO
